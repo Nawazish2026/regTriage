@@ -13,7 +13,8 @@
     "db:migrate": "npm run migrate -w packages/db",
     "db:seed": "npm run seed -w packages/db",
     "db:studio": "npm run studio -w packages/db",
-    "build": "npm run build -w packages/server && npm run build -w packages/web"
+    "postinstall": "npm run db:generate",
+    "build": "npm run db:generate && npm run build -w packages/server && npm run build -w packages/web"
   },
   "devDependencies": {
     "concurrently": "^9.1.0",

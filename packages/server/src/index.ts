@@ -40,10 +40,10 @@ app.notFound((c) => {
   return c.json({ error: 'Not Found', message: `Route ${c.req.path} not found` }, 404);
 });
 
-const port = Number(process.env.PORT) || 3001;
-
-console.log(`Regulatory Triage API listening on http://localhost:${port}`);
-
-serve({ fetch: app.fetch, port });
+if (!process.env.VERCEL) {
+  const port = Number(process.env.PORT) || 3001;
+  console.log(`Regulatory Triage API listening on http://localhost:${port}`);
+  serve({ fetch: app.fetch, port });
+}
 
 export default app;

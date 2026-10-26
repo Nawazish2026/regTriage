@@ -9,7 +9,10 @@ import type {
   ActionItemFilters,
 } from '../types';
 
-const API_BASE = '/api';
+const customBase = import.meta.env.VITE_API_URL ? String(import.meta.env.VITE_API_URL).replace(/\/+$/, '') : '';
+const API_BASE = customBase.length > 0 && !customBase.startsWith('/')
+  ? `${customBase}/api`
+  : '/api';
 
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
