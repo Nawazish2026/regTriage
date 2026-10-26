@@ -28,7 +28,10 @@
     "esbuild@0.25.12": true
   },
   "dependencies": {
+    "@prisma/client": "^6.1.0",
+    "hono": "^4.6.0",
     "@neon/config": "^1.9.4",
-    "@neon/env": "^1.6.5"
+    "@neon/env": "^1.6.5",
+    "prisma": "^6.1.0"
   }
 }
