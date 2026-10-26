@@ -1,0 +1,146 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_URL_UNPOOLED")
+}
+
+enum DirectiveCategory {
+  GUIDANCE
+  RULE
+  RECALL
+  SAFETY_ALERT
+  LABELING_CHANGE
+}
+
+enum Severity {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+  UNKNOWN
+}
+
+enum DirectiveStatus {
+  DRAFT
+  PUBLISHED
+  UNDER_REVIEW
+  SUPERSEDED
+  WITHDRAWN
+}
+
+enum ActionItemStatus {
+  PENDING
+  IN_PROGRESS
+  RESOLVED
+  DISMISSED
+  ESCALATED
+}
+
+enum Priority {
+  P0
+  P1
+  P2
+  P3
+}
+
+model RegulatoryAuthority {
+  id           String   @id @default(uuid())
+  name         String   @unique
+  acronym      String   @unique
+  jurisdiction String
+  websiteUrl   String?  @map("website_url")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  directives ComplianceDirective[]
+
+  @@map("regulatory_authorities")
+}
+
+model ComplianceDirective {
+  id              String            @id @default(uuid())
+  authorityId     String            @map("authority_id")
+  referenceCode   String            @map("reference_code")
+  title           String
+  description     String?           @db.Text
+  category        DirectiveCategory
+  severity        Severity          @default(UNKNOWN)
+  status          DirectiveStatus   @default(DRAFT)
+  effectiveDate   DateTime?         @map("effective_date") @db.Date
+  commentDeadline DateTime?         @map("comment_deadline") @db.Date
+  publishedDate   DateTime?         @map("published_date") @db.Date
+  rawMetadata     Json?             @map("raw_metadata")
+
+  hasDataAnomaly  Boolean           @default(false) @map("has_data_anomaly")
+  anomalyDetails  String?           @map("anomaly_details") @db.Text
+
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+
+  authority       RegulatoryAuthority @relation(fields: [authorityId], references: [id], onDelete: Cascade)
+  actionItems     ActionItem[]
+  affectedProducts AffectedProduct[] @relation("DirectiveProducts")
+
+  @@index([authorityId])
+  @@index([status])
+  @@index([severity])
+  @@index([hasDataAnomaly])
+  @@map("compliance_directives")
+}
+
+model ActionItem {
+  id             String           @id @default(uuid())
+  directiveId    String           @map("directive_id")
+  assigneeId     String?          @map("assignee_id")
+  title          String
+  notes          String?          @db.Text
+  priority       Priority         @default(P3)
+  status         ActionItemStatus @default(PENDING)
+  dueDate        DateTime?        @map("due_date") @db.Date
+  resolvedAt     DateTime?        @map("resolved_at")
+  isFlagged      Boolean          @default(false) @map("is_flagged")
+
+  hasDataAnomaly Boolean          @default(false) @map("has_data_anomaly")
+  anomalyDetails String?          @map("anomaly_details") @db.Text
+
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+
+  directive      ComplianceDirective @relation(fields: [directiveId], references: [id], onDelete: Cascade)
+  assignee       Assignee?           @relation(fields: [assigneeId], references: [id], onDelete: SetNull)
+
+  @@index([directiveId])
+  @@index([assigneeId])
+  @@index([status])
+  @@index([priority])
+  @@index([hasDataAnomaly])
+  @@map("action_items")
+}
+
+model AffectedProduct {
+  id              String   @id @default(uuid())
+  name            String
+  ndcCode         String?  @map("ndc_code")
+  therapeuticArea String   @map("therapeutic_area")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  directives ComplianceDirective[] @relation("DirectiveProducts")
+
+  @@map("affected_products")
+}
+
+model Assignee {
+  id         String   @id @default(uuid())
+  name       String
+  email      String   @unique
+  department String
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  actionItems ActionItem[]
+
+  @@map("assignees")
+}
