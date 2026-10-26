@@ -1,4 +1,3 @@
-const { handle } = require('hono/vercel');
 const { Hono } = require('hono');
 const { cors } = require('hono/cors');
 const { PrismaClient } = require('@prisma/client');
@@ -197,4 +196,16 @@ app.patch('/action-items/:id', async (c) => {
 
 app.all('*', (c) => c.json({ error: 'Not Found', message: `Route ${c.req.path} not found` }, 404));
 
-module.exports = handle(app);
+// Vercel Web API export - use fetch handler directly
+module.exports = (req, res) => {
+  // Convert Node.js req/res to Web API Request and handle with Hono
+  return app.fetch(req, { incoming: req, outgoing: res });
+};
+
+// Also export as GET/POST/etc for Vercel's Web API format
+module.exports.GET = (request) => app.fetch(request);
+module.exports.POST = (request) => app.fetch(request);
+module.exports.PUT = (request) => app.fetch(request);
+module.exports.PATCH = (request) => app.fetch(request);
+module.exports.DELETE = (request) => app.fetch(request);
+module.exports.OPTIONS = (request) => app.fetch(request);
