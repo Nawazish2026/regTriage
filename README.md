@@ -10,34 +10,46 @@ A full-stack application for regulatory compliance officers to view, triage, and
 - **Node.js** ≥ 18
 - **PostgreSQL** 14+ (via Docker, Homebrew, Postgres.app, or any local install)
 
-### Option A: Using Docker (recommended)
+### Option A: Using Neon Cloud PostgreSQL (Fastest — Zero Local DB Setup)
+If using cloud Neon PostgreSQL (or your own cloud database):
 ```bash
-cd regTriage
+# 1. Copy sample environment file
+cp .env.example .env
 
-# 1. Start PostgreSQL
-docker compose up -d
+# 2. Add your Neon pooled and direct connection strings in .env:
+#    DATABASE_URL="postgresql://user:pass@ep-xxx-pooler.region.neon.tech/neondb?sslmode=require"
+#    DATABASE_URL_UNPOOLED="postgresql://user:pass@ep-xxx.region.neon.tech/neondb?sslmode=require"
 
-# 2. Install, migrate, seed
+# 3. Setup (generates client, pushes schema, seeds mock messy data)
 npm run setup
 
-# 3. Start app
+# 4. Start both backend and frontend concurrently
 npm run dev
 ```
 
-### Option B: Using local PostgreSQL
+### Option B: Using Docker (Recommended for Local Dev)
 ```bash
-cd regTriage
+# 1. Start PostgreSQL container
+docker compose up -d
 
-# 1. Create database (use your own superuser credentials)
-psql -U your_user -d postgres -c "CREATE DATABASE regtriage;"
-
-# 2. Update .env with your connection string
-#    DATABASE_URL="postgresql://your_user:your_password@localhost:5432/regtriage?schema=public"
-
-# 3. Install, migrate, seed
+# 2. Install dependencies, generate client, push schema, seed data
 npm run setup
 
-# 4. Start app
+# 3. Start both backend and frontend
+npm run dev
+```
+
+### Option C: Using Existing Local PostgreSQL
+```bash
+# 1. Create database
+psql -U postgres -c "CREATE DATABASE regtriage;"
+
+# 2. Configure .env with your local credentials:
+#    DATABASE_URL="postgresql://postgres:password@localhost:5432/regtriage?schema=public"
+#    DATABASE_URL_UNPOOLED="postgresql://postgres:password@localhost:5432/regtriage?schema=public"
+
+# 3. Setup & launch
+npm run setup
 npm run dev
 ```
 
