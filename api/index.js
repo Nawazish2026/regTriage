@@ -1,101 +1,79 @@
-import { handle } from 'hono/vercel';
-import { Hono } from 'hono';
-import { cors } from 'hono/cors';
+const { handle } = require('hono/vercel');
+const { Hono } = require('hono');
+const { cors } = require('hono/cors');
+const { PrismaClient } = require('@prisma/client');
 
-// Prisma - delay import to catch errors
-let prisma: any;
-
-function getPrisma() {
-  if (!prisma) {
-    const { PrismaClient } = require('@prisma/client');
-    prisma = new PrismaClient({ log: ['error'] });
-  }
-  return prisma;
-}
+// Prisma singleton
+const globalForPrisma = globalThis;
+const prisma = globalForPrisma.__prisma || new PrismaClient({ log: ['error'] });
+if (process.env.NODE_ENV !== 'production') globalForPrisma.__prisma = prisma;
 
 const app = new Hono().basePath('/api');
 
 app.use('*', cors({
-  origin: (origin: string) => origin || '*',
+  origin: (origin) => origin || '*',
   allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowHeaders: ['Content-Type', 'Authorization'],
 }));
 
-app.onError((err: any, c: any) => {
+app.onError((err, c) => {
   console.error('API Error:', err.message, err.stack);
   return c.json({ error: err.message }, 500);
 });
 
-// ── Health ──
-app.get('/health', (c: any) =>
+// Health
+app.get('/health', (c) =>
   c.json({ status: 'ok', timestamp: new Date().toISOString(), service: 'reg-triage-api' })
 );
 
-// ── Debug ──
-app.get('/debug', async (c: any) => {
+// Debug
+app.get('/debug', async (c) => {
   try {
-    const db = getPrisma();
-    const count = await db.regulatoryAuthority.count();
-    return c.json({
-      status: 'connected',
-      authorityCount: count,
-      dbUrl: process.env.DATABASE_URL ? 'SET (' + process.env.DATABASE_URL.substring(0, 30) + '...)' : 'NOT SET',
-    });
-  } catch (err: any) {
-    return c.json({
-      status: 'error',
-      message: err.message,
-      dbUrl: process.env.DATABASE_URL ? 'SET' : 'NOT SET',
-    }, 500);
+    const count = await prisma.regulatoryAuthority.count();
+    return c.json({ status: 'connected', authorityCount: count, dbUrl: process.env.DATABASE_URL ? 'SET' : 'NOT SET' });
+  } catch (err) {
+    return c.json({ status: 'error', message: err.message, dbUrl: process.env.DATABASE_URL ? 'SET' : 'NOT SET' }, 500);
   }
 });
 
-// ── Stats overview ──
-app.get('/stats/overview', async (c: any) => {
-  const db = getPrisma();
-  const [totalDirectives, totalActionItems, anomalyDirectives, anomalyActions] =
-    await Promise.all([
-      db.complianceDirective.count(),
-      db.actionItem.count(),
-      db.complianceDirective.count({ where: { hasDataAnomaly: true } }),
-      db.actionItem.count({ where: { hasDataAnomaly: true } }),
-    ]);
-
-  const byStatus = await db.complianceDirective.groupBy({ by: ['status'], _count: true });
-  const bySeverity = await db.complianceDirective.groupBy({ by: ['severity'], _count: true });
-  const byPriority = await db.actionItem.groupBy({ by: ['priority'], _count: true });
-
-  const overdueActions = await db.actionItem.count({
+// Stats overview
+app.get('/stats/overview', async (c) => {
+  const [totalDirectives, totalActionItems, anomalyDirectives, anomalyActions] = await Promise.all([
+    prisma.complianceDirective.count(),
+    prisma.actionItem.count(),
+    prisma.complianceDirective.count({ where: { hasDataAnomaly: true } }),
+    prisma.actionItem.count({ where: { hasDataAnomaly: true } }),
+  ]);
+  const byStatus = await prisma.complianceDirective.groupBy({ by: ['status'], _count: true });
+  const bySeverity = await prisma.complianceDirective.groupBy({ by: ['severity'], _count: true });
+  const byPriority = await prisma.actionItem.groupBy({ by: ['priority'], _count: true });
+  const overdueActions = await prisma.actionItem.count({
     where: { dueDate: { lt: new Date() }, status: { in: ['PENDING', 'IN_PROGRESS'] } },
   });
-
   return c.json({
     data: {
       totalDirectives, totalActionItems, anomalyDirectives, anomalyActions, overdueActions,
-      byStatus: Object.fromEntries(byStatus.map((s: any) => [s.status, s._count])),
-      bySeverity: Object.fromEntries(bySeverity.map((s: any) => [s.severity, s._count])),
-      byPriority: Object.fromEntries(byPriority.map((s: any) => [s.priority, s._count])),
+      byStatus: Object.fromEntries(byStatus.map((s) => [s.status, s._count])),
+      bySeverity: Object.fromEntries(bySeverity.map((s) => [s.severity, s._count])),
+      byPriority: Object.fromEntries(byPriority.map((s) => [s.priority, s._count])),
     },
   });
 });
 
-// ── Authorities ──
-app.get('/authorities', async (c: any) => {
-  const db = getPrisma();
-  const data = await db.regulatoryAuthority.findMany({ orderBy: { name: 'asc' } });
+// Authorities
+app.get('/authorities', async (c) => {
+  const data = await prisma.regulatoryAuthority.findMany({ orderBy: { name: 'asc' } });
   return c.json({ data });
 });
 
-// ── Assignees ──
-app.get('/assignees', async (c: any) => {
-  const db = getPrisma();
-  const data = await db.assignee.findMany({ orderBy: { name: 'asc' } });
+// Assignees
+app.get('/assignees', async (c) => {
+  const data = await prisma.assignee.findMany({ orderBy: { name: 'asc' } });
   return c.json({ data });
 });
 
-// ── Directives list ──
-app.get('/directives', async (c: any) => {
-  const db = getPrisma();
+// Directives list
+app.get('/directives', async (c) => {
   const page = Math.max(1, Number(c.req.query('page')) || 1);
   const limit = Math.min(100, Math.max(1, Number(c.req.query('limit')) || 20));
   const search = c.req.query('search')?.trim();
@@ -107,7 +85,7 @@ app.get('/directives', async (c: any) => {
   const sortBy = c.req.query('sortBy') || 'updatedAt';
   const sortOrder = c.req.query('sortOrder') === 'asc' ? 'asc' : 'desc';
 
-  const where: any = {};
+  const where = {};
   if (search) where.OR = [
     { title: { contains: search, mode: 'insensitive' } },
     { referenceCode: { contains: search, mode: 'insensitive' } },
@@ -119,23 +97,21 @@ app.get('/directives', async (c: any) => {
   if (hasDataAnomaly === 'true') where.hasDataAnomaly = true;
 
   const [data, total] = await Promise.all([
-    db.complianceDirective.findMany({
+    prisma.complianceDirective.findMany({
       where,
       include: { authority: true, affectedProducts: true, _count: { select: { actionItems: true } } },
       orderBy: { [sortBy]: sortOrder },
       skip: (page - 1) * limit,
       take: limit,
     }),
-    db.complianceDirective.count({ where }),
+    prisma.complianceDirective.count({ where }),
   ]);
-
   return c.json({ data, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } });
 });
 
-// ── Directive detail ──
-app.get('/directives/:id', async (c: any) => {
-  const db = getPrisma();
-  const directive = await db.complianceDirective.findUnique({
+// Directive detail
+app.get('/directives/:id', async (c) => {
+  const directive = await prisma.complianceDirective.findUnique({
     where: { id: c.req.param('id') },
     include: {
       authority: true, affectedProducts: true,
@@ -146,17 +122,14 @@ app.get('/directives/:id', async (c: any) => {
   return c.json({ data: directive });
 });
 
-// ── Update directive ──
-app.patch('/directives/:id', async (c: any) => {
-  const db = getPrisma();
+// Update directive
+app.patch('/directives/:id', async (c) => {
   const body = await c.req.json();
-  const { status, severity, category } = body;
-  const updateData: any = {};
-  if (status) updateData.status = status;
-  if (severity) updateData.severity = severity;
-  if (category) updateData.category = category;
-
-  const directive = await db.complianceDirective.update({
+  const updateData = {};
+  if (body.status) updateData.status = body.status;
+  if (body.severity) updateData.severity = body.severity;
+  if (body.category) updateData.category = body.category;
+  const directive = await prisma.complianceDirective.update({
     where: { id: c.req.param('id') },
     data: updateData,
     include: { authority: true, affectedProducts: true, _count: { select: { actionItems: true } } },
@@ -164,9 +137,8 @@ app.patch('/directives/:id', async (c: any) => {
   return c.json({ data: directive });
 });
 
-// ── Action items list ──
-app.get('/action-items', async (c: any) => {
-  const db = getPrisma();
+// Action items list
+app.get('/action-items', async (c) => {
   const page = Math.max(1, Number(c.req.query('page')) || 1);
   const limit = Math.min(100, Math.max(1, Number(c.req.query('limit')) || 20));
   const search = c.req.query('search')?.trim();
@@ -179,7 +151,7 @@ app.get('/action-items', async (c: any) => {
   const sortBy = c.req.query('sortBy') || 'updatedAt';
   const sortOrder = c.req.query('sortOrder') === 'asc' ? 'asc' : 'desc';
 
-  const where: any = {};
+  const where = {};
   if (search) where.title = { contains: search, mode: 'insensitive' };
   if (status) where.status = status;
   if (priority) where.priority = priority;
@@ -192,33 +164,30 @@ app.get('/action-items', async (c: any) => {
   }
 
   const [data, total] = await Promise.all([
-    db.actionItem.findMany({
+    prisma.actionItem.findMany({
       where,
       include: { directive: { select: { title: true, referenceCode: true } }, assignee: true },
       orderBy: { [sortBy]: sortOrder },
       skip: (page - 1) * limit,
       take: limit,
     }),
-    db.actionItem.count({ where }),
+    prisma.actionItem.count({ where }),
   ]);
-
   return c.json({ data, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } });
 });
 
-// ── Update action item ──
-app.patch('/action-items/:id', async (c: any) => {
-  const db = getPrisma();
+// Update action item
+app.patch('/action-items/:id', async (c) => {
   const body = await c.req.json();
-  const { status, priority, assigneeId, isFlagged, notes } = body;
-  const updateData: any = {};
-  if (status) updateData.status = status;
-  if (priority) updateData.priority = priority;
-  if (assigneeId !== undefined) updateData.assigneeId = assigneeId || null;
-  if (isFlagged !== undefined) updateData.isFlagged = isFlagged;
-  if (notes !== undefined) updateData.notes = notes;
-  if (status === 'RESOLVED') updateData.resolvedAt = new Date();
+  const updateData = {};
+  if (body.status) updateData.status = body.status;
+  if (body.priority) updateData.priority = body.priority;
+  if (body.assigneeId !== undefined) updateData.assigneeId = body.assigneeId || null;
+  if (body.isFlagged !== undefined) updateData.isFlagged = body.isFlagged;
+  if (body.notes !== undefined) updateData.notes = body.notes;
+  if (body.status === 'RESOLVED') updateData.resolvedAt = new Date();
 
-  const item = await db.actionItem.update({
+  const item = await prisma.actionItem.update({
     where: { id: c.req.param('id') },
     data: updateData,
     include: { directive: { select: { title: true, referenceCode: true } }, assignee: true },
@@ -226,6 +195,6 @@ app.patch('/action-items/:id', async (c: any) => {
   return c.json({ data: item });
 });
 
-app.all('*', (c: any) => c.json({ error: 'Not Found', message: `Route ${c.req.path} not found` }, 404));
+app.all('*', (c) => c.json({ error: 'Not Found', message: `Route ${c.req.path} not found` }, 404));
 
-export default handle(app);
+module.exports = handle(app);
