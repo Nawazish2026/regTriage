@@ -3,7 +3,12 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { PrismaClient } from '@prisma/client';
 
-// ── Prisma singleton (edge-safe, no dotenv needed on Vercel) ──
+// ── Edge runtime flag for Vercel ──
+export const config = {
+  runtime: 'nodejs',
+};
+
+// ── Prisma singleton ──
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 const prisma =
   globalForPrisma.prisma ??
@@ -19,10 +24,26 @@ app.use('*', cors({
   allowHeaders: ['Content-Type', 'Authorization'],
 }));
 
+// ── Global error handler ──
+app.onError((err, c) => {
+  console.error('API Error:', err.message, err.stack);
+  return c.json({ error: err.message, stack: process.env.NODE_ENV !== 'production' ? err.stack : undefined }, 500);
+});
+
 // ── Health ──
 app.get('/health', (c) =>
   c.json({ status: 'ok', timestamp: new Date().toISOString(), service: 'reg-triage-api' })
 );
+
+// ── DB connectivity test ──
+app.get('/debug', async (c) => {
+  try {
+    const count = await prisma.regulatoryAuthority.count();
+    return c.json({ status: 'connected', authorityCount: count, dbUrl: process.env.DATABASE_URL ? 'SET' : 'NOT SET' });
+  } catch (err: any) {
+    return c.json({ status: 'error', message: err.message, dbUrl: process.env.DATABASE_URL ? 'SET' : 'NOT SET' }, 500);
+  }
+});
 
 // ── Stats overview ──
 app.get('/stats/overview', async (c) => {
