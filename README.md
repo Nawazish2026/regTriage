@@ -1,6 +1,9 @@
 # RegTriage — Regulatory Intelligence Triage Pipeline
 
-A full-stack application for regulatory compliance officers to view, triage, and manage simulated regulatory updates. Built with a **dense, workstation-style UI** designed for rapid information processing.
+A full-stack decision-layer application for regulatory compliance officers to view, triage, and manage simulated regulatory updates. Built with a **dense, workstation-style UI** designed for rapid hypothesis-to-insight processing.
+
+- 🌐 **Live Production App**: [https://regtriage.vercel.app](https://regtriage.vercel.app)
+- 📦 **GitHub Repository**: [https://github.com/Nawazish2026/regTriage](https://github.com/Nawazish2026/regTriage)
 
 ---
 
