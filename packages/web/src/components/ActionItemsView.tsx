@@ -27,11 +27,22 @@ export function ActionItemsView({ assignees }: ActionItemsViewProps) {
   const items = response?.data || [];
   const pagination = response?.pagination;
 
+  const [searchInput, setSearchInput] = useState('');
+
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchInput(value);
+    const timeout = setTimeout(() => {
+      setFilters(prev => ({ ...prev, page: 1, search: value || undefined }));
+    }, 300);
+    return () => clearTimeout(timeout);
+  }, []);
+
   const updateFilter = useCallback((key: string, value: any) => {
     setFilters(prev => ({ ...prev, page: 1, [key]: value || undefined }));
   }, []);
 
   const resetFilters = useCallback(() => {
+    setSearchInput('');
     setFilters({
       page: 1,
       limit: 25,
@@ -200,6 +211,14 @@ export function ActionItemsView({ assignees }: ActionItemsViewProps) {
   return (
     <div className="main-panel">
       <div className="filter-bar">
+        <input
+          className="filter-search"
+          type="text"
+          placeholder="Search tasks, titles, notes..."
+          value={searchInput}
+          onChange={(e) => handleSearchChange(e.target.value)}
+        />
+
         <select
           className="filter-select"
           value={filters.status || ''}

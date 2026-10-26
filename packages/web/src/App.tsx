@@ -77,8 +77,8 @@ export default function App() {
               </svg>
               <span>Action Items Triage</span>
               {stats && (
-                <span className={`tab-count ${stats.pendingActions > 0 ? 'tab-count--pending' : ''}`}>
-                  {stats.pendingActions}
+                <span className={`tab-count ${(stats.pendingActions ?? 0) > 0 ? 'tab-count--pending' : ''}`}>
+                  {stats.pendingActions ?? 0}
                 </span>
               )}
             </button>
@@ -158,6 +158,15 @@ export default function App() {
 }
 
 function StatsCards({ stats }: { stats: StatsOverview }) {
+  const totalDirectives = stats.totalDirectives ?? 0;
+  const pendingActions = stats.pendingActions ?? 0;
+  const criticalDirectives = stats.criticalDirectives ?? 0;
+  const anomalyDirectives = stats.anomalyDirectives ?? 0;
+  const anomalyActionItems = stats.anomalyActionItems ?? 0;
+  const totalAnomalies = stats.totalAnomalies ?? (anomalyDirectives + anomalyActionItems);
+  const overdueActions = stats.overdueActions ?? 0;
+  const resolvedActions = stats.resolvedActions ?? 0;
+
   return (
     <div className="stats-cards-container">
       <div className="stat-card">
@@ -171,7 +180,7 @@ function StatsCards({ stats }: { stats: StatsOverview }) {
           </span>
         </div>
         <div className="stat-card__body">
-          <span className="stat-card__value">{stats.totalDirectives}</span>
+          <span className="stat-card__value">{totalDirectives}</span>
           <span className="stat-card__badge stat-card__badge--neutral">Active Global Feeds</span>
         </div>
       </div>
@@ -187,7 +196,7 @@ function StatsCards({ stats }: { stats: StatsOverview }) {
           </span>
         </div>
         <div className="stat-card__body">
-          <span className="stat-card__value stat-card__value--amber">{stats.pendingActions}</span>
+          <span className="stat-card__value stat-card__value--amber">{pendingActions}</span>
           <span className="stat-card__badge stat-card__badge--amber">Requires Triage</span>
         </div>
       </div>
@@ -204,7 +213,7 @@ function StatsCards({ stats }: { stats: StatsOverview }) {
           </span>
         </div>
         <div className="stat-card__body">
-          <span className="stat-card__value stat-card__value--red">{stats.criticalDirectives}</span>
+          <span className="stat-card__value stat-card__value--red">{criticalDirectives}</span>
           <span className="stat-card__badge stat-card__badge--red">Immediate Attention</span>
         </div>
       </div>
@@ -215,9 +224,9 @@ function StatsCards({ stats }: { stats: StatsOverview }) {
           <span className="stat-card__icon stat-card__icon--purple-gradient">⚠️</span>
         </div>
         <div className="stat-card__body">
-          <span className="stat-card__value stat-card__value--purple">{stats.totalAnomalies}</span>
+          <span className="stat-card__value stat-card__value--purple">{totalAnomalies}</span>
           <span className="stat-card__badge stat-card__badge--purple">
-            {stats.anomalyDirectives} dir • {stats.anomalyActionItems} items
+            {anomalyDirectives} dir • {anomalyActionItems} items
           </span>
         </div>
       </div>
@@ -235,7 +244,7 @@ function StatsCards({ stats }: { stats: StatsOverview }) {
           </span>
         </div>
         <div className="stat-card__body">
-          <span className="stat-card__value stat-card__value--orange">{stats.overdueActions}</span>
+          <span className="stat-card__value stat-card__value--orange">{overdueActions}</span>
           <span className="stat-card__badge stat-card__badge--orange">SLA Breached</span>
         </div>
       </div>
@@ -251,7 +260,7 @@ function StatsCards({ stats }: { stats: StatsOverview }) {
           </span>
         </div>
         <div className="stat-card__body">
-          <span className="stat-card__value stat-card__value--green">{stats.resolvedActions}</span>
+          <span className="stat-card__value stat-card__value--green">{resolvedActions}</span>
           <span className="stat-card__badge stat-card__badge--green">Compliance Closed</span>
         </div>
       </div>

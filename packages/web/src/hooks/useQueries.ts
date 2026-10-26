@@ -37,6 +37,7 @@ export function useUpdateDirective() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['directives'] });
       queryClient.invalidateQueries({ queryKey: ['directive'] });
+      queryClient.invalidateQueries({ queryKey: ['action-items'] });
       queryClient.invalidateQueries({ queryKey: ['stats'] });
     },
   });
@@ -46,7 +47,7 @@ export function useActionItems(filters: ActionItemFilters) {
   return useQuery({
     queryKey: ['action-items', filters],
     queryFn: () => fetchActionItems(filters),
-    staleTime: 30_000,
+    staleTime: 5_000,
     placeholderData: keepPreviousData,
   });
 }
@@ -85,7 +86,7 @@ export function useStats() {
   return useQuery({
     queryKey: ['stats'],
     queryFn: fetchStats,
-    staleTime: 15_000,
-    refetchInterval: 60_000,
+    staleTime: 2_000,
+    refetchInterval: 15_000,
   });
 }

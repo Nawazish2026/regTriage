@@ -17,6 +17,7 @@ statsRouter.get('/overview', async (c) => {
     directivesByStatus,
     directivesBySeverity,
     directivesByCategory,
+    actionItemsByPriority,
   ] = await Promise.all([
     prisma.complianceDirective.count(),
     prisma.actionItem.count(),
@@ -44,7 +45,16 @@ statsRouter.get('/overview', async (c) => {
       by: ['category'],
       _count: { _all: true },
     }),
+    prisma.actionItem.groupBy({
+      by: ['priority'],
+      _count: { _all: true },
+    }),
   ]);
+
+  const byStatus = Object.fromEntries(directivesByStatus.map(g => [g.status, g._count._all]));
+  const bySeverity = Object.fromEntries(directivesBySeverity.map(g => [g.severity, g._count._all]));
+  const byCategory = Object.fromEntries(directivesByCategory.map(g => [g.category, g._count._all]));
+  const byPriority = Object.fromEntries(actionItemsByPriority.map(g => [g.priority, g._count._all]));
 
   return c.json({
     data: {
@@ -58,16 +68,15 @@ statsRouter.get('/overview', async (c) => {
       overdueActions,
       resolvedActions,
       escalatedActions,
+      byStatus,
+      bySeverity,
+      byCategory,
+      byPriority,
       breakdowns: {
-        byStatus: Object.fromEntries(
-          directivesByStatus.map(g => [g.status, g._count._all])
-        ),
-        bySeverity: Object.fromEntries(
-          directivesBySeverity.map(g => [g.severity, g._count._all])
-        ),
-        byCategory: Object.fromEntries(
-          directivesByCategory.map(g => [g.category, g._count._all])
-        ),
+        byStatus,
+        bySeverity,
+        byCategory,
+        byPriority,
       },
     },
   });
